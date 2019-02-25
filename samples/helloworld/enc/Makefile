@@ -25,8 +25,8 @@ all:
 build:
 	@ echo "Compilers used: $(CC), $(CXX)"
 	oeedger8r ../helloworld.edl --trusted
-	$(CC) -g -c $(CFLAGS) enc.c -o enc.o
-	$(CC) -g -c $(CFLAGS) helloworld_t.c -o helloworld_t.o
+	$(CC) -g -c $(CFLAGS) -DOE_API_VERSION=2 -DOE_BUILD_ENCLAVE enc.c -o enc.o
+	$(CC) -g -c $(CFLAGS) -DOE_API_VERSION=2 -DOE_BUILD_ENCLAVE helloworld_t.c -o helloworld_t.o
 	$(CC) -o helloworldenc helloworld_t.o enc.o $(LDFLAGS)
 
 sign:
