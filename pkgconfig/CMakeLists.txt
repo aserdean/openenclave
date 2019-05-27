@@ -7,7 +7,7 @@
 ##
 ##==============================================================================
 
-set(PREFIX "${CMAKE_INSTALL_PREFIX}")
+set(PREFIX "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
 
 ##==============================================================================
 ##
@@ -106,14 +106,14 @@ set(HOST_CXXLIBS "${HOST_CLIBS}")
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-gcc.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oeenclave-gcc.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-gcc.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-gcc.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -122,14 +122,14 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-g++.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oeenclave-g++.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-g++.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-g++.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -138,14 +138,14 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-gcc.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oehost-gcc.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-gcc.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-gcc.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -154,14 +154,14 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-g++.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oehost-g++.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-g++.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-g++.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -170,14 +170,14 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-clang.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oeenclave-clang.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-clang.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-clang.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -186,14 +186,14 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-clang++.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oeenclave-clang++.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-clang++.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oeenclave-clang++.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -202,14 +202,14 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-clang.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oehost-clang.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-clang.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-clang.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
 
 ##==============================================================================
 ##
@@ -218,67 +218,11 @@ install(FILES
 ##==============================================================================
 
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-clang++.pc
+    ${PROJECT_SOURCE_DIR}/pkgconfig/oehost-clang++.pc.in
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-clang++.pc
     @ONLY)
 
 install(FILES
     ${CMAKE_BINARY_DIR}/output/share/pkgconfig/oehost-clang++.pc
     DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/pkgconfig")
-
-##==============================================================================
-##
-## Reconfigure .pc files so that samples and tests may use them.
-##
-##==============================================================================
-
-# TODO: Remove this work-around after we make the pkg-config files relocatable.
-set(PREFIX "$OE_PREFIX")
-
-set(ENCLAVE_CINCLUDES
-    "-I\${includedir}/openenclave/3rdparty/libc -I\${includedir}/openenclave/3rdparty -I\${includedir}")
-
-set(ENCLAVE_CXXINCLUDES
-    "-I\${includedir}/openenclave/3rdparty/libcxx ${ENCLAVE_CINCLUDES}")
-
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-gcc.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oeenclave-gcc.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-g++.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oeenclave-g++.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-gcc.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oehost-gcc.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-g++.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oehost-g++.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-clang.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oeenclave-clang.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oeenclave-clang++.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oeenclave-clang++.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-clang.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oehost-clang.pc
-    @ONLY)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/oehost-clang++.pc
-    ${CMAKE_BINARY_DIR}/pkgconfig/oehost-clang++.pc
-    @ONLY)
+    "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/pkgconfig")
