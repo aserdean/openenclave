@@ -2,162 +2,8 @@
 oe = new jenkins.common.Openenclave()
 
 // The below timeout is set in minutes
-GLOBAL_TIMEOUT = 240
+GLOBAL_TIMEOUT = 7200
 
-def ACCTest(String label, String compiler, String build_type) {
-    stage("${label} ${compiler} SGX1FLC ${build_type}") {
-        node("${label}") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                def task = """
-                           cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -Wdev
-                           ninja -v
-                           ctest --output-on-failure
-                           """
-                oe.Run(compiler, task)
-            }
-        }
-    }
-}
-
-def ACCGNUTest() {
-    stage("ACC1804 GNU gcc SGX1FLC") {
-        node("ACC-1804") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                def task = """
-                           cmake ${WORKSPACE} -DUSE_LIBSGX=ON
-                           make
-                           ctest --output-on-failure
-                           """
-                oe.Run("gcc", task)
-            }
-        }
-    }
-}
-
-def simulationTest(String version, String platform_mode, String build_type) {
-    def use_libsgx = "OFF"
-    if (platform_mode == "SGX1FLC") {
-        use_libsgx = "ON"
-    }
-    stage("Sim clang-7 Ubuntu${version} ${platform_mode} ${build_type}") {
-        node("nonSGX") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                withEnv(["OE_SIMULATION=1"]) {
-                    def task = """
-                               cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DUSE_LIBSGX=${use_libsgx} -Wdev
-                               ninja -v
-                               ctest --output-on-failure
-                               """
-                    oe.ContainerRun("oetools-full-${version}", "clang-7", task, "--cap-add=SYS_PTRACE")
-                }
-            }
-        }
-    }
-}
-
-def AArch64GNUTest(String version, String build_type) {
-    stage("AArch64 GNU gcc Ubuntu${version} ${build_type}") {
-        node("nonSGX") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                def task = """
-                            cmake ${WORKSPACE} -G Ninja -DCMAKE_TOOLCHAIN_FILE=${WORKSPACE}/cmake/arm-cross.cmake -DCMAKE_BUILD_TYPE=${build_type} -DUSE_LIBSGX=OFF -Wdev
-                            ninja -v
-                            """
-                oe.ContainerRun("oetools-full-${version}", "cross", task, "--cap-add=SYS_PTRACE")
-            }
-        }
-    }
-}
-
-def ACCContainerTest(String label, String version) {
-    stage("${label} Container RelWithDebInfo") {
-        node("${label}") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                def task = """
-                           cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -Wdev
-                           ninja -v
-                           ctest --output-on-failure
-                           """
-                oe.ContainerRun("oetools-full-${version}", "clang-7", task, "--cap-add=SYS_PTRACE --device /dev/sgx:/dev/sgx")
-            }
-        }
-    }
-}
-
-def checkDevFlows(String version) {
-    stage('Default compiler') {
-        node("nonSGX") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                def task = """
-                           cmake ${WORKSPACE} -G Ninja -DUSE_LIBSGX=OFF -Wdev --warn-uninitialized -Werror=dev
-                           ninja -v
-                           """
-                oe.ContainerRun("oetools-minimal-${version}", "clang-7", task, "--cap-add=SYS_PTRACE")
-            }
-        }
-    }
-}
-
-def checkCI() {
-    stage('Check CI') {
-        node("nonSGX") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                // At the moment, the check-ci script assumes that it's executed from the
-                // root source code directory.
-                oe.ContainerRun("oetools-minimal-18.04", "clang-7", "cd ${WORKSPACE} && ./scripts/check-ci", "--cap-add=SYS_PTRACE")
-            }
-        }
-    }
-}
-
-def win2016LinuxElfBuild(String version, String compiler, String build_type) {
-    stage("Ubuntu ${version} SGX1 ${compiler} ${build_type}}") {
-        node("nonSGX") {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                def task = """
-                           cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DUSE_DEBUG_MALLOC=OFF -Wdev
-                           ninja -v
-                           """
-                oe.ContainerRun("oetools-full-${version}", compiler, task, "--cap-add=SYS_PTRACE")
-                stash includes: 'build/tests/**', name: "linux-${compiler}-${build_type}-${version}-${BUILD_NUMBER}"
-            }
-        }
-    }
-    stage("Windows ${build_type}") {
-        node('SGXFLC-Windows') {
-            timeout(GLOBAL_TIMEOUT) {
-                cleanWs()
-                checkout scm
-                unstash "linux-${compiler}-${build_type}-${version}-${BUILD_NUMBER}"
-                bat 'move build linuxbin'
-                dir('build') {
-                  bat """
-                      vcvars64.bat x64 && \
-                      cmake.exe ${WORKSPACE} -G \"Visual Studio 15 2017 Win64\" -DADD_WINDOWS_ENCLAVE_TESTS=ON -DBUILD_ENCLAVES=OFF -DCMAKE_BUILD_TYPE=${build_type} -DLINUX_BIN_DIR=${WORKSPACE}\\linuxbin\\tests -Wdev && \
-                      msbuild ALL_BUILD.vcxproj -p:Configuration=${build_type} && \
-                      ctest.exe -V -C ${build_type}
-                      """
-                }
-            }
-        }
-    }
-}
 
 def win2016CrossCompile(String build_type) {
     stage("Windows ${build_type}") {
@@ -170,7 +16,7 @@ def win2016CrossCompile(String build_type) {
                       vcvars64.bat x64 && \
                       cmake.exe ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DBUILD_ENCLAVES=ON -Wdev && \
                       ninja.exe && \
-                      ctest.exe -V -C ${build_type}
+                      ctest.exe -V -C ${build_type} --repeat-until-fail 5000
                       """
                 }
             }
@@ -185,46 +31,5 @@ properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '90',
                                       numToKeepStr: '180')),
             [$class: 'JobRestrictionProperty']])
 
-parallel "Check Developer Experience Ubuntu 16.04" :            { checkDevFlows('16.04') },
-         "Check Developer Experience Ubuntu 18.04" :            { checkDevFlows('18.04') },
-         "Check CI" :                                           { checkCI() },
-         "ACC1604 clang-7 Debug" :                              { ACCTest('ACC-1604', 'clang-7', 'Debug') },
-         "ACC1604 clang-7 Release" :                            { ACCTest('ACC-1604', 'clang-7', 'Release') },
-         "ACC1604 clang-7 RelWithDebInfo" :                     { ACCTest('ACC-1604', 'clang-7', 'RelWithDebinfo') },
-         "ACC1604 gcc Debug" :                                  { ACCTest('ACC-1604', 'gcc', 'Debug') },
-         "ACC1604 gcc Release" :                                { ACCTest('ACC-1604', 'gcc', 'Release') },
-         "ACC1604 gcc RelWithDebInfo" :                         { ACCTest('ACC-1604', 'gcc', 'RelWithDebInfo') },
-         "ACC1604 Container RelWithDebInfo" :                   { ACCContainerTest('ACC-1604', '16.04') },
-         "ACC1804 clang-7 Debug" :                              { ACCTest('ACC-1804', 'clang-7', 'Debug') },
-         "ACC1804 clang-7 Release" :                            { ACCTest('ACC-1804', 'clang-7', 'Release') },
-         "ACC1804 clang-7 RelWithDebInfo" :                     { ACCTest('ACC-1804', 'clang-7', 'RelWithDebinfo') },
-         "ACC1804 gcc Debug" :                                  { ACCTest('ACC-1804', 'gcc', 'Debug') },
-         "ACC1804 gcc Release" :                                { ACCTest('ACC-1804', 'gcc', 'Release') },
-         "ACC1804 gcc RelWithDebInfo" :                         { ACCTest('ACC-1804', 'gcc', 'RelWithDebInfo') },
-         "ACC1804 Container RelWithDebInfo" :                   { ACCContainerTest('ACC-1804', '18.04') },
-         "ACC1804 GNU gcc SGX1FLC" :                            { ACCGNUTest() },
-         "AArch64 1604 GNU gcc Debug" :                         { AArch64GNUTest('16.04', 'Debug')},
-         "AArch64 1604 GNU gcc Release" :                       { AArch64GNUTest('16.04', 'Release')},
-         "AArch64 1604 GNU gcc RelWithDebInfo" :                { AArch64GNUTest('16.04', 'RelWithDebInfo')},
-         "AArch64 1804 GNU gcc Debug" :                         { AArch64GNUTest('18.04', 'Debug')},
-         "AArch64 1804 GNU gcc Release" :                       { AArch64GNUTest('18.04', 'Release')},
-         "AArch64 1804 GNU gcc RelWithDebInfo" :                { AArch64GNUTest('18.04', 'RelWithDebInfo')},
-         "Sim 1604 clang-7 SGX1 Debug" :                        { simulationTest('16.04', 'SGX1', 'Debug')},
-         "Sim 1604 clang-7 SGX1 Release" :                      { simulationTest('16.04', 'SGX1', 'Release')},
-         "Sim 1604 clang-7 SGX1 RelWithDebInfo" :               { simulationTest('16.04', 'SGX1', 'RelWithDebInfo')},
-         "Sim 1604 clang-7 SGX1-FLC Debug" :                    { simulationTest('16.04', 'SGX1FLC', 'Debug')},
-         "Sim 1604 clang-7 SGX1-FLC Release" :                  { simulationTest('16.04', 'SGX1FLC', 'Release')},
-         "Sim 1604 clang-7 SGX1-FLC RelWithDebInfo" :           { simulationTest('16.04', 'SGX1FLC', 'RelWithDebInfo')},
-         "Sim 1804 clang-7 SGX1 Debug" :                        { simulationTest('18.04', 'SGX1', 'Debug')},
-         "Sim 1804 clang-7 SGX1 Release" :                      { simulationTest('18.04', 'SGX1', 'Release')},
-         "Sim 1804 clang-7 SGX1 RelWithDebInfo" :               { simulationTest('18.04', 'SGX1', 'RelWithDebInfo')},
-         "Sim 1804 clang-7 SGX1-FLC Debug" :                    { simulationTest('18.04', 'SGX1FLC', 'Debug')},
-         "Sim 1804 clang-7 SGX1-FLC Release" :                  { simulationTest('18.04', 'SGX1FLC', 'Release')},
-         "Sim 1804 clang-7 SGX1-FLC RelWithDebInfo" :           { simulationTest('18.04', 'SGX1FLC', 'RelWithDebInfo')},
-         "Win2016 Ubuntu1604 clang-7 Debug Linux-Elf-build" :   { win2016LinuxElfBuild('16.04', 'clang-7', 'Debug') },
-         "Win2016 Ubuntu1604 clang-7 Release Linux-Elf-build" : { win2016LinuxElfBuild('16.04', 'clang-7', 'Release') },
-         "Win2016 Ubuntu1804 clang-7 Debug Linux-Elf-build" :   { win2016LinuxElfBuild('18.04', 'clang-7', 'Debug') },
-         "Win2016 Ubuntu1804 clang-7 Release Linux-Elf-build" : { win2016LinuxElfBuild('18.04', 'clang-7', 'Release') },
-         "Win2016 Ubuntu1804 gcc Debug Linux-Elf-build" :       { win2016LinuxElfBuild('18.04', 'gcc', 'Debug') },
-         "Win2016 Debug Cross Compile" :                        { win2016CrossCompile('Debug') },
+parallel "Win2016 Debug Cross Compile" :                        { win2016CrossCompile('Debug') },
          "Win2016 Release Cross Compile" :                      { win2016CrossCompile('Release') }
